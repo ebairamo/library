@@ -56,7 +56,19 @@ func NewMemorySupplyRepository() *MemorySupplyRepository {
 func (r *MemorySupplyRepository) GetByID(id int) (*domain.Supply, error) {
 	supply, exists := r.supplies[id]
 	if !exists {
-		return nil, errors.New("Id не существует")
+		return nil, errors.New("id не существует")
 	}
 	return supply, nil
+}
+
+func (r *MemorySupplyRepository) Create(supply *domain.Supply) error {
+	if supply == nil {
+		return errors.New("поставка не найдена")
+	}
+	if supply.ID == 0 {
+		supply.ID = r.nextID
+		r.nextID++
+	}
+	r.supplies[supply.ID] = supply
+	return nil
 }
