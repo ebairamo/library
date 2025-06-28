@@ -1,7 +1,7 @@
-package repositories
+package main
 
 import (
-	"errors"
+	"fmt"
 	"military/internal/domain"
 	"time"
 )
@@ -53,46 +53,6 @@ func NewMemorySupplyRepository() *MemorySupplyRepository {
 	}
 }
 
-func (r *MemorySupplyRepository) GetByID(id int) (*domain.Supply, error) {
-	supply, exists := r.supplies[id]
-	if !exists {
-		return nil, errors.New("id не существует")
-	}
-	return supply, nil
-}
-
-func (r *MemorySupplyRepository) Create(supply *domain.Supply) error {
-	if supply == nil {
-		return errors.New("поставка не найдена")
-	}
-	if supply.ID == 0 {
-		supply.ID = r.nextID
-		r.nextID++
-	}
-	r.supplies[supply.ID] = supply
-	return nil
-}
-
-func (r *MemorySupplyRepository) Update(supply *domain.Supply) error {
-	if supply == nil {
-		return errors.New("supply пуст")
-	}
-	_, exists := r.supplies[supply.ID]
-	if !exists {
-		return errors.New("id не сушествует")
-	}
-	r.supplies[supply.ID] = supply
-	return nil
-}
-
-func (r *MemorySupplyRepository) List() ([]*domain.Supply, error) {
-	supplies := make([]*domain.Supply, 0, len(r.supplies))
-	for _, supply := range r.supplies {
-		supplies = append(supplies, supply)
-	}
-	return supplies, nil
-}
-
 func (r *MemorySupplyRepository) FindPending() ([]*domain.Supply, error) {
 	supplies := make([]*domain.Supply, 0, len(r.supplies))
 
@@ -102,4 +62,16 @@ func (r *MemorySupplyRepository) FindPending() ([]*domain.Supply, error) {
 		}
 	}
 	return supplies, nil
+}
+
+func main() {
+	repo := NewMemorySupplyRepository() // Создаём экземпляр репозитория
+	supplies, err := repo.FindPending() // Вызываем метод на экземпляре
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	for _, supply := range supplies {
+		fmt.Printf("%+v\n", supply)
+	}
 }
