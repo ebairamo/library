@@ -1,126 +1,120 @@
-// файл: internal/core/services/order_service.go
-
 package services
 
 import (
 	"errors"
-	"shop/internal/domain"
-	"shop/internal/ports/repositories"
-	"time"
+	"library/internal/domain"
+	"library/internal/ports/repositories"
 )
 
-type orderService struct {
-	orderRepo    repositories.OrderRepository
-	productRepo  repositories.ProductRepository
-	customerRepo repositories.CustomerRepository
+type libraryService struct {
+	bookRepo   repositories.BookRepository
+	readerRepo repositories.ReaderRepository
 }
 
-func NewOrderService(
-	orderRepo repositories.OrderRepository,
-	productRepo repositories.ProductRepository,
-	customerRepo repositories.CustomerRepository,
-) *orderService {
-	return &orderService{
-		orderRepo:    orderRepo,
-		productRepo:  productRepo,
-		customerRepo: customerRepo,
+func NewLibraryService(
+	bookRepo repositories.BookRepository,
+	readerRepo repositories.ReaderRepository,
+) *libraryService {
+	return &libraryService{
+		bookRepo:   bookRepo,
+		readerRepo: readerRepo,
 	}
 }
 
-func (s *orderService) CreateOrder(customerID int, productIDs []int) (*domain.Order, error) {
-	customer, err := s.customerRepo.GetByID(customerID)
+func (s *libraryService) BorrowBook(readerID int, bookID int) error {
+	// 1. Находим читателя
+	reader, err := s.readerRepo.GetByID(readerID)
 	if err != nil {
-		return nil, errors.New("покупатель не найден")
+		return errors.New("читатель не найден")
 	}
 
-	if customer.IsBlocked {
-		return nil, errors.New("покупатель заблокирован")
-	}
-
-	var products []*domain.Product
-	var totalPrice float64 = 0
-
-	for _, productID := range productIDs {
-		product, err := s.productRepo.GetByID(productID)
-		if err != nil {
-			return nil, errors.New("товар не найден")
-		}
-
-		if product.Quantity <= 0 {
-			return nil, errors.New("товар отсутствует на складе")
-		}
-
-		product.Quantity--
-		products = append(products, product)
-		totalPrice += product.Price
-
-		err = s.productRepo.Update(product)
-		if err != nil {
-			return nil, errors.New("ошибка обновления товара")
-		}
-	}
-
-	order := &domain.Order{
-		CustomerID: customerID,
-		Products:   products,
-		TotalPrice: totalPrice,
-		Status:     domain.StatusNew,
-		CreatedAt:  time.Now(),
-	}
-
-	err = s.orderRepo.Create(order)
+	// 2. Находим книгу
+	book, err := s.bookRepo.GetByID(bookID)
 	if err != nil {
-		return nil, errors.New("ошибка сохранения заказа")
+		return errors.New("книга не найдена")
 	}
 
-	customer.OrderCount++
-	err = s.customerRepo.Update(customer)
+	// 3. Проверяем, доступна ли книга
+	if book.Status != domain.StatusAvailable {
+		return errors.New("книга недоступна для выдачи")
+	}
+
+	// 4. Выдаем книгу читателю
+	err = reader.ReaderBorrowBook(bookID)
 	if err != nil {
-		return nil, errors.New("ошибка обновления данных покупателя")
+		return err
 	}
 
-	return order, nil
-}
-
-func (s *orderService) CancelOrder(orderID int) error {
-	order, err := s.orderRepo.GetByID(orderID)
+	// 5. Меняем статус книги
+	err = book.Borrow()
 	if err != nil {
-		return errors.New("заказ не найден")
+		return err
 	}
 
-	if order.Status != domain.StatusNew {
-		return errors.New("нельзя отменить заказ в текущем статусе")
-	}
-
-	order.Status = domain.StatusCancelled
-	order.UpdatedAt = time.Now()
-
-	for _, product := range order.Products {
-		product.Quantity++
-		err = s.productRepo.Update(product)
-		if err != nil {
-			return errors.New("ошибка обновления товара")
-		}
-	}
-
-	err = s.orderRepo.Update(order)
+	// 6. Сохраняем изменения
+	err = s.bookRepo.Update(book)
 	if err != nil {
-		return errors.New("ошибка обновления заказа")
+		return errors.New("ошибка обновления книги")
+	}
+
+	err = s.readerRepo.Update(reader)
+	if err != nil {
+		return errors.New("ошибка обновления данных читателя")
 	}
 
 	return nil
 }
 
-func (s *orderService) GetCustomerOrders(customerID int) ([]*domain.Order, error) {
-	_, err := s.customerRepo.GetByID(customerID)
+func (s *libraryService) ReturnBook(readerID int, bookID int) error {
+	reader, err := s.readerRepo.GetByID(readerID)
 	if err != nil {
-		return nil, errors.New("покупатель не найден")
+		return errors.New("читатель не найден")
+	}
+	book, err := s.bookRepo.GetByID(bookID)
+	if err != nil {
+		return errors.New("книга не найдена")
+	}
+	exist := false
+	for _, theBook := range reader.BooksInRentNow {
+		if theBook == bookID {
+			exist = true
+		}
+	}
+	if exist != true {
+		return errors.New("такой книги нет у читателя")
+	}
+	newBooksInRent := make([]int, 0, len(reader.BooksInRentNow)-1)
+	for _, id := range reader.BooksInRentNow {
+		if id != bookID {
+			newBooksInRent = append(newBooksInRent, id)
+		}
+	}
+	reader.BooksInRentNow = newBooksInRent
+
+	var bookIndex int = -1
+	for i, id := range reader.DateOfRent.BookID {
+		if id == bookID {
+			bookIndex = i
+			break
+		}
+	}
+	if bookIndex >= 0 {
+
+		reader.DateOfRent.BookID = append(reader.DateOfRent.BookID[:bookIndex], reader.DateOfRent.BookID[bookIndex+1:]...)
+		reader.DateOfRent.DateOfRentingBook = append(reader.DateOfRent.DateOfRentingBook[:bookIndex], reader.DateOfRent.DateOfRentingBook[bookIndex+1:]...)
+	}
+	err = book.ReturnBook()
+	if err != nil {
+		return err
+	}
+	err = s.bookRepo.Update(book)
+	if err != nil {
+		return errors.New("ошибка обнавления книги")
+	}
+	err = s.readerRepo.Update(reader)
+	if err != nil {
+		return errors.New("ошибка обнавления данных читателя")
 	}
 
-	orders, err := s.orderRepo.FindByCustomerID(customerID)
-	if err != nil {
-		return nil, errors.New("ошибка получения заказов")
-	}
-
-	return orders, nil
+	return nil
 }
