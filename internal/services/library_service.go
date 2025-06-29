@@ -118,3 +118,30 @@ func (s *libraryService) ReturnBook(readerID int, bookID int) error {
 
 	return nil
 }
+
+func (s *libraryService) GetAvailableBooks() ([]*domain.Book, error) {
+	criteria := string(domain.StatusAvailable)
+	availableBooks, err := s.bookRepo.FindByCriteria(criteria)
+	if err != nil {
+		return nil, errors.New("нет такогь критерия")
+	}
+	return availableBooks, nil
+}
+
+func (s *libraryService) GetReaderBooks(readerID int) ([]*domain.Book, error) {
+	reader, err := s.readerRepo.GetByID(readerID)
+	if err != nil {
+		return nil, errors.New("ошибка получения айди читателя")
+	}
+
+	booksOfReader := reader.BooksInRentNow
+	books := make([]*domain.Book, 0, len(booksOfReader))
+	for _, bookID := range booksOfReader {
+		book, err := s.bookRepo.GetByID(bookID)
+		if err != nil {
+			return nil, errors.New("ошибка получения книги по айди")
+		}
+		books = append(books, book)
+	}
+	return books, nil
+}
