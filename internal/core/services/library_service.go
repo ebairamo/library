@@ -145,3 +145,56 @@ func (s *libraryService) GetReaderBooks(readerID int) ([]*domain.Book, error) {
 	}
 	return books, nil
 }
+
+func (s *libraryService) MarkBookAsLost(readerID int, bookID int) error {
+	reader, err := s.readerRepo.GetByID(readerID)
+	if err != nil {
+		return errors.New("ошибка получения айди читателя")
+	}
+	book, err := s.bookRepo.GetByID(bookID)
+	if err != nil {
+		return errors.New("ошибка получения айди книги")
+	}
+	readerBooks := reader.BooksInRentNow
+	exist := false
+	for _, theBook := range readerBooks {
+		if theBook == bookID {
+			exist = true
+		}
+	}
+	if exist != true {
+		return errors.New("нет такой книги у читателя")
+	}
+	newReaderBooksInRentNow := make([]int, 0, len(readerBooks)-1)
+	for _, bookId := range readerBooks {
+		if bookId != bookID {
+			newReaderBooksInRentNow = append(newReaderBooksInRentNow, bookId)
+		}
+	}
+	var bookIndex int = -1
+	for i, id := range reader.DateOfRent.BookID {
+		if id == bookID {
+			bookIndex = i
+			break
+		}
+	}
+
+	if bookIndex >= 0 {
+		reader.DateOfRent.BookID = append(reader.DateOfRent.BookID[:bookIndex], reader.DateOfRent.BookID[bookIndex+1:]...)
+		reader.DateOfRent.DateOfRentingBook = append(reader.DateOfRent.DateOfRentingBook[:bookIndex], reader.DateOfRent.DateOfRentingBook[bookIndex+1:]...)
+	}
+	reader.BooksInRentNow = newReaderBooksInRentNow
+	err = book.LostBook()
+	if err != nil {
+		return errors.New("ошибка изменения статуса книги Lost")
+	}
+	err = s.bookRepo.Update(book)
+	if err != nil {
+		return errors.New("ошибка обнавления книги")
+	}
+	err = s.readerRepo.Update(reader)
+	if err != nil {
+		return errors.New("ошибка обнавления данных читателя")
+	}
+	return nil
+}
