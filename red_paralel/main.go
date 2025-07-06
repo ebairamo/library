@@ -2,60 +2,72 @@ package main
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
 	"time"
 )
 
-// Источник данных (радиочастота)
-type DataSource struct {
-	ID        int
-	Name      string
-	Frequency int // частота генерации сообщений в миллисекундах
+func ganerateNums(ch chan int, done chan bool) {
+	for {
+		select {
+		case <-done:
+			return
+
+		default:
+			num := rand.Intn(100)
+			ch <- num
+			time.Sleep(1 * time.Second)
+		}
+	}
 }
 
-// Сообщение с перехваченными данными
-type Message struct {
-	SourceID  int
-	Data      string
-	Timestamp time.Time
+func isPrime(n int) bool {
+	// Обработка простых случаев
+	if n <= 1 {
+		return false
+	}
+	if n <= 3 {
+		return true
+	}
+
+	// Исключаем четные числа и числа, кратные 3
+	if n%2 == 0 || n%3 == 0 {
+		return false
+	}
+
+	// Проверяем делители вида 6k ± 1 до √n
+	sqrtN := int(math.Sqrt(float64(n)))
+	for i := 5; i <= sqrtN; i += 6 {
+		if n%i == 0 || n%(i+2) == 0 {
+			return false
+		}
+	}
+
+	return true
 }
 
-// Симуляция перехвата сообщений с источника
-func monitorSource(source DataSource, messageChannel chan<- Message, done <-chan bool) {
-	// TODO: Реализовать мониторинг источника в отдельной горутине
-	// Периодически отправлять сообщения в messageChannel
-	// Остановить мониторинг при получении сигнала по каналу done
-}
-
-// Центр анализа данных
-func analyzeMessages(messageChannel <-chan Message, done <-chan bool) {
-	// TODO: Реализовать обработку всех входящих сообщений
-	// Выводить их в консоль
-	// Остановить обработку при получении сигнала по каналу done
+func resever(ch chan int, done chan bool) {
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			num := <-ch
+			if isPrime(num) == true {
+				fmt.Println("ВАЖНОЕ СООБЩЕНИЕ:", num)
+			} else {
+				fmt.Println(num)
+			}
+		}
+	}
 }
 
 func main() {
-	// Инициализация источников данных
-	sources := []DataSource{
-		{ID: 1, Name: "Берлин", Frequency: 500},
-		{ID: 2, Name: "Мюнхен", Frequency: 800},
-		{ID: 3, Name: "Гамбург", Frequency: 300},
-	}
-
-	// Канал для передачи сообщений
-	messageChannel := make(chan Message)
-
-	// Канал для сигнала остановки
 	done := make(chan bool)
+	ch := make(chan int)
+	go ganerateNums(ch, done)
+	go resever(ch, done)
 
-	// TODO: Запустить горутины для мониторинга каждого источника
-
-	// TODO: Запустить горутину для анализа сообщений
-
-	// Ждем 10 секунд, затем останавливаем все горутины
 	time.Sleep(10 * time.Second)
 	close(done)
-
-	// Даем горутинам время на завершение
-	time.Sleep(1 * time.Second)
-	fmt.Println("Операция завершена!")
 }
