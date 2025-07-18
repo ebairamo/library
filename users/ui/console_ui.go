@@ -23,7 +23,7 @@ func RunConsoleUI() {
 
 		switch choice {
 		case 1:
-			displayAllUsers(users)
+			DisplayAllUsers(users)
 		case 2:
 			newUser, err := addNewUser()
 			if err != nil {
@@ -56,7 +56,24 @@ func RunConsoleUI() {
 			results := concurrent.ProcessUsers(users, func(u models.User) string {
 				return fmt.Sprintf("Обработан пользователь: %s %s", u.Name, u.Surname)
 			})
-			fmt.Println(results)
+			fmt.Println("\nРезультаты обработки:")
+			for _, result := range results {
+				fmt.Println(result)
+			}
+		case 7:
+			var minAge, maxAge int
+			fmt.Print("Введите минимальный возраст: ")
+			fmt.Scan(&minAge)
+			fmt.Print("Введите максимальный возраст: ")
+			fmt.Scan(&maxAge)
+
+			fmt.Printf("Поиск пользователей от %d до %d лет...\n", minAge, maxAge)
+			matchedUsers := concurrent.FindUsersByAgeRange(users, minAge, maxAge)
+
+			fmt.Printf("\nНайдено %d пользователей:\n", len(matchedUsers))
+			for i, user := range matchedUsers {
+				fmt.Printf("%d. %s %s (%d лет)\n", i+1, user.Name, user.Surname, user.Age)
+			}
 		case 0:
 			fmt.Println("До свидания!")
 			return
@@ -75,6 +92,7 @@ func displayMenu() {
 	fmt.Println("4. Сохранить пользователей в файл")
 	fmt.Println("5. Загрузить пользователей из файла")
 	fmt.Println("6. Параллельная обработка пользователей")
+	fmt.Println("7. Параллельная обработка возраста пользователей")
 	fmt.Println("0. Выход")
 }
 
@@ -120,7 +138,6 @@ func addNewUser() (models.User, error) {
 	// Преобразование возраста
 	userAge, err := strconv.Atoi(userSlice[1])
 	if err != nil {
-
 		return models.User{}, fmt.Errorf("невозможно преобразовать возраст в число")
 	}
 
@@ -162,7 +179,7 @@ func initDefaultUsers() []models.User {
 	return users
 }
 
-func displayAllUsers(users []models.User) {
+func DisplayAllUsers(users []models.User) {
 	if len(users) == 0 {
 		fmt.Println("Список пользователей пуст")
 	} else {

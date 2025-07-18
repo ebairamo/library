@@ -1,7 +1,10 @@
 package main
 
-import "user_manager/ui"
+import (
+	"user_manager/web"
+)
 
 func main() {
-	ui.RunConsoleUI()
+	// ui.RunConsoleUI()
+	web.StartServer()
 }
