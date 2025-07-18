@@ -13,7 +13,7 @@ import (
 
 // RunConsoleUI запускает консольный интерфейс управления пользователями
 func RunConsoleUI() {
-	users := initDefaultUsers()
+	users := InitDefaultUsers()
 	var choice int
 
 	for {
@@ -155,7 +155,7 @@ func addNewUser() (models.User, error) {
 	return user, nil
 }
 
-func initDefaultUsers() []models.User {
+func InitDefaultUsers() []models.User {
 	users := []models.User{
 		{
 			Name:    "Александр",
@@ -179,7 +179,7 @@ func initDefaultUsers() []models.User {
 	return users
 }
 
-func DisplayAllUsers(users []models.User) {
+func DisplayAllUsers(users []models.User) []models.User {
 	if len(users) == 0 {
 		fmt.Println("Список пользователей пуст")
 	} else {
@@ -189,6 +189,7 @@ func DisplayAllUsers(users []models.User) {
 				i+1, user.Name, user.Surname, user.Age, user.Email)
 		}
 	}
+	return users
 }
 
 func getFileName() string {

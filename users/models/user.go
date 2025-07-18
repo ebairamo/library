@@ -4,10 +4,10 @@ import "fmt"
 
 // User представляет пользователя системы
 type User struct {
-	Name    string
-	Surname string
-	Age     int
-	Email   string
+	Name    string `json:"name"`
+	Surname string `json:"surname"`
+	Age     int    `json:"age"`
+	Email   string `json:"email"`
 }
 
 // SayHello - метод приветствия

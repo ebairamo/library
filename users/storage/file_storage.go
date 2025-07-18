@@ -4,11 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"user_manager/models"
 )
 
 // SaveUsersToFile сохраняет список пользователей в файл
 func SaveUsersToFile(users []models.User, filename string) error {
+	if !strings.HasSuffix(filename, ".json") {
+		return fmt.Errorf("файл должен быть формата json")
+	}
 	if len(users) == 0 {
 		return fmt.Errorf("список пользователей пуст")
 	}
@@ -16,6 +20,7 @@ func SaveUsersToFile(users []models.User, filename string) error {
 	if err != nil {
 		return fmt.Errorf("ошибка при сериализации: %w", err)
 	}
+
 	err = os.WriteFile(filename, jsonData, 0644)
 	if err != nil {
 		return fmt.Errorf("ошибка при записи файла: %w", err)
